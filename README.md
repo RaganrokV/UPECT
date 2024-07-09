@@ -1,5 +1,6 @@
 # Universal Pre-trained Energy Consumption Transformer (UPECT)
 #### UPECT is a large-scale open-source pre-trained model for predicting trip energy consumption. Boosted by 40 million learnable parameters and 300,412 real-world trips, UPECT effectively learns prior knowledge and transferable representations about energy consumption.
+#### To maximize the utility of UPECT for the research community, this study provides open-access resources including the pre-trained model (UPECT-40M), all codes, and licensed fine-tuning data. Researchers can freely access open-source repository. This study encourages other researchers to use various EV databases to study UPECT and explore its potential in other domains.
 
 # How to use?
 #### The code for pre-training the model is in file 7. We tried two structures decoder-only and encoder-decoder structure, and found that decoder-only works better
