@@ -1,0 +1,379 @@
+# -*- coding: utf-8 -*-
+import pandas as pd
+import numpy as np
+import warnings
+import pickle
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+warnings.filterwarnings("ignore")
+from My_utils.evaluation_scheme import evaluation
+from sklearn.model_selection import GridSearchCV
+
+#%%
+"""
+随机森林 （Stochastic RF） （Pengshun et al.引文2021）
+Pengshun, L., Y. Zhang, K. Zhang, Y. Zhang, and K. Zhang. 2021. 
+Prediction of electric bus energy consumption with stochastic speed profile generation modelling and data driven method based on real-world big data. 
+Applied Energy 298:117204. 
+doi:10.1016/j.apenergy.2021.117204.
+"""
+#%%
+"""local"""
+with open('11-pretrained_incremental_learning/data/Test_vehicle.pkl', 'rb') as file:
+    Test_vehicle = pickle.load(file)
+
+def labeling(Array):
+    """label encoding"""
+    # 对出行季节进行Label Encoding
+    season_mapping = {'spring': 1, 'summer': 2, 'autumn': 3, 'winter': 4}
+    Array['出行季节'] = Array['出行季节'].map(season_mapping)
+
+    # 对出行日期进行Label Encoding
+    day_mapping = {'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4,
+                   'Friday': 5, 'Saturday': 6, 'Sunday': 7}
+    Array['出行日期'] = Array['出行日期'].map(day_mapping)
+
+    # 对出行时段进行Label Encoding
+    period_mapping = {'morning peak': 1, 'night peak': 2, 'other time': 3, "nighttime": 4}
+    Array['出行时段'] = Array['出行时段'].map(period_mapping)
+
+    # 对车辆类型进行Label Encoding
+    vehicle_mapping = {'Sedan': 1, 'SUV': 2, 'Sedan PHEV': 3, 'SUV PHEV': 4}
+    Array['车辆类型'] = Array['车辆类型'].map(vehicle_mapping)
+
+    Array.loc[Array['VV'].apply(lambda x: isinstance(x, str)), 'VV'] = 0.1
+
+    columns_to_drop = ["出行时间", "地点", "VIN"]
+    Array = Array.drop(columns=columns_to_drop).astype(float)
+    Array = Array.fillna(0)
+
+    return Array
+
+SUM_M = []
+for i in [0.7,0.5,0.3,0.1]:
+    M = []
+    for arr in Test_vehicle:
+        Array = labeling(arr)
+        x = Array.values[:, 1:]
+        y = Array.values[:, 0]
+
+        X_train, X_test, y_train, y_test = \
+            train_test_split(x, y, test_size=(1 - i), shuffle=False)
+
+        # 添加判断，如果X_train只有一个样本，就复制自己变成两个
+        if X_train.shape[0] == 1:
+            X_train = np.vstack([X_train, X_train])
+            y_train = np.append(y_train, y_train[0])
+
+        # 定义随机森林的参数网格
+        param_grid = {
+            'n_estimators': [50, 100, 200],
+            'max_depth': [None, 10, 20, 30],
+        }
+
+        # 初始化随机森林回归器
+        rf_regressor = RandomForestRegressor(random_state=42)
+
+        # 在内部循环中进行网格搜索
+        grid_search = GridSearchCV(estimator=rf_regressor, param_grid=param_grid,
+                                   scoring='neg_mean_squared_error', cv=2)
+        grid_search.fit(X_train, y_train)
+
+        # 使用最佳参数的模型进行预测
+        best_rf_regressor = grid_search.best_estimator_
+        EC_Pred = best_rf_regressor.predict(X_test)
+
+        EC_True = y_test
+
+        Metric1 = np.array(evaluation(EC_True, EC_Pred))
+        print("acc:", Metric1)
+        M.append(Metric1)
+
+    METRIC = np.vstack(M)
+
+    SUM_M.append(METRIC)
+#%%
+"""Charge Car"""
+
+with open("11-pretrained_incremental_learning/data/ChargeCar.pkl", "rb") as f:
+    ChargeCar = pickle.load(f)
+
+
+x = ChargeCar.values[:, 1:]
+y = ChargeCar.values[:, 0]
+
+X_train, X_test, y_train, y_test = \
+    train_test_split(x, y, test_size=0.3, shuffle=False)
+
+# 定义随机森林的参数网格
+param_grid = {
+    'n_estimators': [50, 100, 200],
+     'max_depth': [None, 10, 20, 30],
+}
+
+# 初始化随机森林回归器
+rf_regressor = RandomForestRegressor(random_state=42)
+
+# 在内部循环中进行网格搜索
+grid_search = GridSearchCV(estimator=rf_regressor, param_grid=param_grid,
+                           scoring='neg_mean_squared_error', cv=5)
+grid_search.fit(X_train, y_train)
+
+# 使用最佳参数的模型进行预测
+best_rf_regressor = grid_search.best_estimator_
+EC_Pred = best_rf_regressor.predict(X_test)
+
+EC_True = y_test
+
+Metric1 = np.array(evaluation(EC_True, EC_Pred))
+print("acc:", Metric1)
+#%%
+
+"""BHD"""
+
+with open("11-pretrained_incremental_learning/data/BHD.pkl", "rb") as f:
+    BHD = pickle.load(f)
+
+rename_dict = {
+    'Date': '出行时间',
+    'Distance [km]': '行程距离',
+    'Duration [min]': '行程时间',
+    'Battery State of Charge (Start)': '当前SOC',
+    'Ambient Temperature (Start) [°C]': 'T'
+}
+BHD.rename(columns=rename_dict, inplace=True)
+def labeling2(Array):
+    """label encoding"""
+    # 对出行季节进行Label Encoding
+    season_mapping = {'spring': 0, 'summer': 0.333, 'autumn': 0.667, 'winter': 1}
+    Array['出行季节'] = Array['出行季节'].map(season_mapping)
+
+    # 对出行日期进行Label Encoding
+    day_mapping = {'Monday': 0, 'Tuesday': 0.167, 'Wednesday': 0.333, 'Thursday': 0.5,
+                   'Friday': 0.667, 'Saturday': 0.883, 'Sunday': 1}
+    Array['出行日期'] = Array['出行日期'].map(day_mapping)
+
+    # 对出行时段进行Label Encoding
+    period_mapping = {'morning peak': 0, 'night peak': 0.333, 'other time': 0.667, "nighttime": 1}
+    Array['出行时段'] = Array['出行时段'].map(period_mapping)
+
+    # 对车辆类型进行Label Encoding
+    vehicle_mapping = {'Sedan': 0, 'SUV': 0.333, 'Sedan PHEV': 0.667, 'SUV PHEV': 1}
+    Array['车辆类型'] = Array['车辆类型'].map(vehicle_mapping)
+
+    Array['整备质量'] = Array['整备质量']/1880
+    Array['电池能量'] = Array['电池能量'] /61.1
+
+
+    columns_to_drop = ["出行时间", "地点"]
+    Array = Array.drop(columns=columns_to_drop).astype(float)
+    Array = Array.fillna(0)
+
+    return Array
+
+BHD=labeling2(BHD)
+
+BHD['当前SOC']=BHD['当前SOC']*100
+
+x = BHD.values[:, 1:]
+y = BHD.values[:, 0]
+
+X_train, X_test, y_train, y_test = \
+    train_test_split(x, y, test_size=0.3, shuffle=False)
+
+# 定义随机森林的参数网格
+param_grid = {
+    'n_estimators':[4,6,8],
+     'max_depth': [None, 10, 20, 30],
+}
+
+# 初始化随机森林回归器
+rf_regressor = RandomForestRegressor(random_state=42)
+
+# 在内部循环中进行网格搜索
+grid_search = GridSearchCV(estimator=rf_regressor, param_grid=param_grid,
+                           scoring='neg_mean_squared_error', cv=5)
+grid_search.fit(X_train, y_train)
+
+# 使用最佳参数的模型进行预测
+best_rf_regressor = grid_search.best_estimator_
+EC_Pred = best_rf_regressor.predict(X_test)
+
+EC_True = y_test
+
+Metric1 = np.array(evaluation(EC_True, EC_Pred))
+print("acc:", Metric1)
+
+#%%
+"""SpritMonitor"""
+
+with open("11-pretrained_incremental_learning/data/SpritMonitor.pkl", "rb") as f:
+    SpritMonitor = pickle.load(f)
+
+
+rename_dict = {
+    'quantity(kWh)': '行程能耗',
+    'trip_distance(km)': '行程距离',
+    'odometer': '当前累积行驶里程',
+    'fuel_date': '出行时间',
+    'avg_speed(km/h)': '行程平均速度',
+}
+
+
+def labeling(df):
+    """label encoding"""
+    # 对出行季节进行 Label Encoding
+    season_mapping = {'spring': 0, 'summer': 0.333, 'autumn': 0.667, 'winter': 1}
+    df['出行季节'] = df['出行季节'].map(season_mapping)
+
+    # 对出行日期进行 Label Encoding
+    day_mapping = {'Monday': 0, 'Tuesday': 0.167, 'Wednesday': 0.333, 'Thursday': 0.5,
+                   'Friday': 0.667, 'Saturday': 0.883, 'Sunday': 1}
+    df['出行日期'] = df['出行日期'].map(day_mapping)
+
+    # 对出行时段进行 Label Encoding
+    period_mapping = {'morning peak': 0, 'night peak': 0.333, 'other time': 0.667, "nighttime": 1}
+    df['出行时段'] = df['出行时段'].map(period_mapping)
+
+    # 对车辆类型进行 Label Encoding
+    vehicle_mapping = {'Sedan': 0, 'SUV': 0.333, 'Sedan PHEV': 0.667, 'SUV PHEV': 1}
+    df['车辆类型'] = df['车辆类型'].map(vehicle_mapping)
+
+    # 对驾驶风格进行 Label Encoding
+    style_mapping = {'Normal': 0, 'Moderate': 0.5, 'Fast': 1}
+    df['driving_style'] = df['driving_style'].map(style_mapping)
+
+    # 对轮胎类型进行 Label Encoding
+    tire_mapping = {'Winter tires': 0, 'Summer tires': 1}
+    df['tire_type'] = df['tire_type'].map(tire_mapping)
+
+    df['整备质量'] = df['整备质量'] / 1880
+    df['电池能量'] = df['电池能量'] / 61.1
+
+    # 删除不需要的列
+    columns_to_drop = ["出行时间", "地点"]
+    df.drop(columns=columns_to_drop, inplace=True)
+
+    # 将数据类型转换为 float，并填充缺失值为 0
+    df = df.astype(float).fillna(0)
+
+    return df
+
+
+# 对每个 DataFrame 执行重命名和标签编码操作
+SpritMonitor_labeled=[]
+for df in SpritMonitor:
+    df.rename(columns=rename_dict, inplace=True)  # 执行重命名操作
+    SpritMonitor_labeled.append(labeling(df))  # 执行标签编码操作
+
+for structured in SpritMonitor_labeled:
+
+    x = structured.values[:, 1:]
+    y = structured.values[:, 0]
+
+    X_train, X_test, y_train, y_test = \
+        train_test_split(x, y, test_size=0.3, shuffle=False)
+
+    # 定义随机森林的参数网格
+    param_grid = {
+        'n_estimators':[50, 100, 200],
+        'max_depth': [None, 10, 20, 30],
+    }
+
+    # 初始化随机森林回归器
+    rf_regressor = RandomForestRegressor(random_state=42)
+
+    # 在内部循环中进行网格搜索
+    grid_search = GridSearchCV(estimator=rf_regressor, param_grid=param_grid,
+                               scoring='neg_mean_squared_error', cv=5)
+    grid_search.fit(X_train, y_train)
+
+    # 使用最佳参数的模型进行预测
+    best_rf_regressor = grid_search.best_estimator_
+    EC_Pred = best_rf_regressor.predict(X_test)
+
+    EC_True = y_test
+
+    Metric1 = np.array(evaluation(EC_True, EC_Pred))
+    print("acc:", Metric1)
+
+#%%
+"""VED"""
+
+with open("11-pretrained_incremental_learning/data/VED.pkl", "rb") as f:
+    VED = pickle.load(f)
+VED=pd.concat(VED, ignore_index=True)
+rename_dict = {
+    '湿度': 'U',
+    '可见度': 'VV',
+    '风速': 'Ff',
+    '温度': 'T',
+    '降雨': 'RRR',
+}
+
+VED.rename(columns=rename_dict, inplace=True)  # 执行重命名操作
+
+VED["VV"] = VED["VV"].replace("2.50V", "2.5")
+
+def labeling(df):
+    """label encoding"""
+    # 对出行季节进行 Label Encoding
+    season_mapping = {'spring': 0, 'summer': 0.333, 'autumn': 0.667, 'winter': 1}
+    df['出行季节'] = df['出行季节'].map(season_mapping)
+
+    # 对出行日期进行 Label Encoding
+    day_mapping = {'Monday': 0, 'Tuesday': 0.167, 'Wednesday': 0.333, 'Thursday': 0.5,
+                   'Friday': 0.667, 'Saturday': 0.883, 'Sunday': 1}
+    df['出行日期'] = df['出行日期'].map(day_mapping)
+
+    # 对出行时段进行 Label Encoding
+    period_mapping = {'morning peak': 0, 'night peak': 0.333, 'other time': 0.667, "nighttime": 1}
+    df['出行时段'] = df['出行时段'].map(period_mapping)
+
+    # 对车辆类型进行 Label Encoding
+    vehicle_mapping = {'Sedan': 0, 'SUV': 0.333, 'Sedan PHEV': 0.667, 'SUV PHEV': 1}
+    df['车辆类型'] = df['车辆类型'].map(vehicle_mapping)
+
+    df['整备质量'] = df['整备质量'] / 1880
+    df['电池能量'] = df['电池能量'] / 61.1
+
+    # 删除不需要的列
+    columns_to_drop = ["出行时间", "地点"]
+    df.drop(columns=columns_to_drop, inplace=True)
+
+    # 将数据类型转换为 float，并填充缺失值为 0
+    df = df.astype(float).fillna(0)
+
+    return df
+
+
+VED=labeling(VED) # 执行标签编码操作
+
+x = VED.values[:, 1:]
+y = VED.values[:, 0]
+
+X_train, X_test, y_train, y_test = \
+    train_test_split(x, y, test_size=0.3, shuffle=False)
+
+# 定义随机森林的参数网格
+param_grid = {
+    'n_estimators': [50, 100, 200],
+     'max_depth': [None, 10, 20, 30],
+}
+
+# 初始化随机森林回归器
+rf_regressor = RandomForestRegressor(random_state=42)
+
+# 在内部循环中进行网格搜索
+grid_search = GridSearchCV(estimator=rf_regressor, param_grid=param_grid,
+                           scoring='neg_mean_squared_error', cv=5)
+grid_search.fit(X_train, y_train)
+
+# 使用最佳参数的模型进行预测
+best_rf_regressor = grid_search.best_estimator_
+EC_Pred = best_rf_regressor.predict(X_test)
+
+EC_True = y_test
+
+Metric1 = np.array(evaluation(EC_True, EC_Pred))
+print("acc:", Metric1)
