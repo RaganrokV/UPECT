@@ -18,7 +18,7 @@ for key, value in state_dict.items():
         new_state_dict[key] = value
 UPECT.load_state_dict(new_state_dict)
 ```
-#### 3. Four downstream tasks we use are saved as .pkl in the data folder, change the read directory and start trying!
+#### 3. Four downstream tasks we used are saved as .pkl in the data folder, change the path and start trying!
 
 
 ##### The code for pre-training the model is in file 7. We tried two structures decoder-only and encoder-decoder structure, and found that decoder-only works better
