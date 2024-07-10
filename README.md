@@ -4,7 +4,7 @@
 
 # How to use?
 
-#### 1. You can download our pre-training model UPECT-40M on OneDrive: https://1drv.ms/u/c/284956e407934917/Ed6g9DN4KRFJh5Zbyo50MowByxbMMutr_ExWMJwA2qzWEA?e=IP2TJq
+#### 1. You can download our pre-training model UPECT-40M on [OneDrive](https://1drv.ms/u/c/284956e407934917/Ed6g9DN4KRFJh5Zbyo50MowByxbMMutr_ExWMJwA2qzWEA?e=IP2TJq)
 #### 2. Then loading a pre-trained model with the following code
 ```ckpt = torch.load('11-pretrained_incremental_learning/model/UPECT_40M.pt')
 % 提取 DataParallel 包装的模型中的实际模型参数
