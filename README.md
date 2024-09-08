@@ -51,6 +51,9 @@ UPECT.load_state_dict(new_state_dict)
 |                         |      10%      |            | 1e-5 |    4   |
 |     Full fine-tuning    |      70%      |            | 1e-4 |   50   |
 
+# Data disclosure
+
+##### We publicize trip data for four datasets in the data folder, which are in our pre-processed format. Unfortunately, we are not authorized to disclose the more than 300,000 trip data used for pre-training
 
 # Tips
 ##### The code for pre-training the model is in file 7. We tried two structures: decoder-only and encoder-decoder structure, and found that decoder-only works better
