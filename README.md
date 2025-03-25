@@ -3,9 +3,6 @@
 
 #### To maximize the utility of UPECT for the research community, we provide open-access resources including the pre-trained model (UPECT-40M), all codes, and licensed fine-tuning data. We encourage other researchers to use various EV databases to study UPECT and explore its potential in other domains.
 
-## Note: 
-#### We anticipate releasing Version 2 by 2026. V2 will be trained on 600,000 trips and feature a flexible architecture, enabling it to extend beyond energy consumption prediction to multi-task scenarios such as trip generation, charging demand prediction, and aging assessment. Once fully tested and debugged, we will upload it to a new repository and update a redirect link here. If you have any ideas or suggestions regarding in-vehicle general artificial intelligence, we welcome your communication and collaboration.
-
 # Framework
 
 ![image](https://github.com/RaganrokV/UPECT/assets/73992419/e5724b74-4a8b-4d1f-aacd-700dce2bb595)
@@ -56,6 +53,9 @@ UPECT.load_state_dict(new_state_dict)
 
 # UPDATE
 We uploaded some new baselines and partially fine-tuned the model according to our scenario
+
+# Note: 
+#### We anticipate releasing Version 2 by 2026. V2 will be trained on 600,000 trips and feature a flexible architecture, enabling it to extend beyond energy consumption prediction to multi-task scenarios such as trip generation, charging demand prediction, and aging assessment. Once fully tested and debugged, we will upload it to a new repository and update a redirect link here. If you have any ideas or suggestions regarding in-vehicle general artificial intelligence, we welcome your communication and collaboration.
 
 # Data disclosure
 
